@@ -23,7 +23,7 @@ function saveData() {
 }
 
 /* =========================
-   ⏳ TIME UTIL
+   ⏳ FORMAT TIME
 ========================= */
 function formatTime(ms) {
   const m = Math.floor(ms / 60000);
@@ -33,104 +33,110 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSS DATABASE (FINAL)
+   ⚔️ BOSSES DATABASE
 ========================= */
 const bosses = {
+  venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin", spawnTime: "08:36 AM" },
+  viorent: { name: "Viorent", hours: 10, location: "Crescent Lake", spawnTime: "08:36 AM" },
+  ego: { name: "Ego", hours: 10, location: "Ulan Canyon", spawnTime: "12:33 AM" },
 
-  /* ⏳ INTERVAL BOSSES */
-  venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
-  viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
-  ego: { name: "Ego", type: "interval", hours: 10, location: "Ulan Canyon" },
+  dalia: { name: "Lady Dalia", hours: 18, location: "Twilight Hill", spawnTime: "12:48 AM" },
 
-  livera: { name: "Livera", type: "interval", hours: 24, location: "Protector's Ruins" },
-  araneo: { name: "Araneo", type: "interval", hours: 24, location: "ToT1" },
-  undomiel: { name: "Undomiel", type: "interval", hours: 24, location: "Secret Lab" },
+  gareth: { name: "Gareth", hours: 32, location: "DM1", spawnTime: "04:33 AM" },
+  braudmore: { name: "Baron Braudmore", hours: 32, location: "BoT", spawnTime: "04:38 AM" },
 
-  lady_dalia: { name: "Lady Dalia", type: "interval", hours: 18, location: "Twilight Hill" },
+  titore: { name: "Titore", hours: 24, location: "DM2", spawnTime: "07:28 AM" },
 
-  aquleus: { name: "General Aquleus", type: "interval", hours: 29, location: "ToT2" },
-  amentis: { name: "Amentis", type: "interval", hours: 29, location: "LoG" },
+  aquleus: { name: "General Aquleus", hours: 29, location: "ToT2", spawnTime: "09:39 AM" },
+  amentis: { name: "Amentis", hours: 29, location: "LoG", spawnTime: "09:45 AM" },
 
-  braudmore: { name: "Baron Braudmore", type: "interval", hours: 32, location: "BoT" },
-  gareth: { name: "Gareth", type: "interval", hours: 32, location: "DM1" },
-  titore: { name: "Titore", type: "interval", hours: 37, location: "DM2" },
+  undomiel: { name: "Undomiel", hours: 24, location: "Secret Lab", spawnTime: "12:23 PM" },
+  livera: { name: "Livera", hours: 24, location: "Protector's Ruins", spawnTime: "12:23 PM" },
+  araneo: { name: "Araneo", hours: 24, location: "ToT1", spawnTime: "12:23 PM" },
 
-  larba: { name: "Larba", type: "interval", hours: 35, location: "RoW" },
-  shuliar: { name: "Shuliar", type: "interval", hours: 35, location: "RoW" },
-  catena: { name: "Catena", type: "interval", hours: 35, location: "Deadman 3" },
-  auraq: { name: "Auraq", type: "interval", hours: 35, location: "Garbana 2" },
+  saphirus: { name: "Saphirus", hours: 24, location: "Crescent Lake", spawnTime: "05:00 PM" },
 
-  duplican: { name: "Duplican", type: "interval", hours: 48, location: "PoR" },
-  wannitas: { name: "Wannitas", type: "interval", hours: 48, location: "PoR" },
-  metus: { name: "Metus", type: "interval", hours: 48, location: "PoR" },
+  tumier: { name: "Tumier", hours: 37, location: "Garbana 3F", spawnTime: "07:00 PM" },
+  rakajeth: { name: "Rakajeth", hours: 24, location: "Dracas", spawnTime: "07:00 PM" },
 
-  secreta: { name: "Secreta", type: "interval", hours: 62, location: "Silvergrass" },
-  ordo: { name: "Ordo", type: "interval", hours: 62, location: "Silvergrass" },
-  asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
-  supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
+  benji: { name: "Benji", hours: 24, location: "Barbas", spawnTime: "09:00 PM" },
 
-  /* 📅 SCHEDULE BOSSES */
-  clemantis: { name: "Clemantis", type: "schedule", location: "Corrupted Basin" },
-  saphirus: { name: "Saphirus", type: "schedule", location: "Crescent Lake" },
-  neutro: { name: "Neutro", type: "schedule", location: "Desert of Screaming" },
-  thymele: { name: "Thymele", type: "schedule", location: "Twilight Hill" },
-  milavy: { name: "Milavy", type: "schedule", location: "ToT3" },
-  ringor: { name: "Ringor", type: "schedule", location: "BoT" },
-  roderick: { name: "Roderick", type: "schedule", location: "Unknown" },
-  benji: { name: "Benji", type: "schedule", location: "Barbas" },
-  libitina: { name: "Libitina", type: "schedule", location: "Unknown" },
-  rakajeth: { name: "Rakajeth", type: "schedule", location: "Dracas" },
-  tumier: { name: "Tumier", type: "schedule", location: "Garbana 3F" }
+  nevaeh: { name: "Nevaeh", hours: 24, location: "Kransia", spawnTime: "10:00 PM" }
 };
 
 /* =========================
-   📊 DASHBOARD (SORTED)
+   🔥 TODAY SEED
+========================= */
+function seedTodaysKills() {
+  const data = {
+    ego: 0,
+    dalia: 15,
+    gareth: 273,
+    braudmore: 278,
+    titore: 448,
+    venatus: 516,
+    viorent: 516,
+    aquleus: 579,
+    amentis: 585,
+    undomiel: 743,
+    livera: 743,
+    araneo: 743
+  };
+
+  const now = Date.now();
+
+  for (const key in data) {
+    if (bosses[key]) {
+      kills[key] = now - data[key] * 60000;
+    }
+  }
+
+  saveData();
+}
+
+/* =========================
+   📊 DASHBOARD (SORTED BY NEAREST SPAWN)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
   const list = Object.entries(bosses).map(([key, b]) => {
 
-    const loc = `Location: ${b.location}`;
+    const locationLine = `Location: ${b.location}`;
 
-    /* 🟢 ALIVE */
+    // 🟢 Alive
     if (!kills[key]) {
       return {
-        text: `• **${b.name}**\n🟢 Alive\n${loc}`,
-        sort: Infinity
+        text: `• **${b.name}**\n🟢 Alive\n${locationLine}`,
+        sortValue: Infinity
       };
     }
 
-    /* ⏳ INTERVAL BOSSES */
-    if (b.type === "interval") {
-      const respawn = kills[key] + b.hours * 3600000;
-      const diff = respawn - now;
+    // 🔴 Dead
+    const respawnMs = kills[key] + b.hours * 3600000;
+    const diff = respawnMs - now;
 
-      if (diff > 0) {
-        return {
-          text:
-            `• **${b.name}**\n` +
-            `🔴 Spawns in: ${formatTime(diff)}\n` +
-            `${loc}`,
-          sort: diff
-        };
-      }
+    const spawnDate = new Date(respawnMs);
 
+    if (diff > 0) {
       return {
-        text: `• **${b.name}**\n🟢 Ready\n${loc}`,
-        sort: 0
+        text:
+          `• **${b.name}**\n` +
+          `🔴 Spawns in: ${spawnDate.toLocaleString()}\n` +
+          `⏳ Remaining: ${formatTime(diff)}\n` +
+          `${locationLine}`,
+        sortValue: diff
       };
     }
 
-    /* 📅 SCHEDULE BOSSES (placeholder logic) */
     return {
-      text:
-        `• **${b.name}**\n📅 Scheduled Boss\n${loc}`,
-      sort: 999999999
+      text: `• **${b.name}**\n🟢 Ready\n${locationLine}`,
+      sortValue: 0
     };
   });
 
-  list.sort((a, b) => a.sort - b.sort);
+  // ⚡ SORT: nearest spawn first
+  list.sort((a, b) => a.sortValue - b.sortValue);
 
   const entries = list.map(x => x.text);
 
@@ -140,13 +146,13 @@ function buildDashboard() {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('⚔️ RAID BOSS DASHBOARD')
+    .setTitle('⚔️ RAID BOSS DASHBOARD (Nearest Spawn Priority)')
     .setColor(0xf1c40f)
     .setTimestamp();
 
   chunks.forEach((chunk, i) => {
     embed.addFields({
-      name: i === 0 ? '📊 Nearest Spawn Priority' : '\u200b',
+      name: i === 0 ? '📊 Priority List' : '\u200b',
       value: chunk
     });
   });
@@ -195,9 +201,19 @@ client.on('messageCreate', message => {
       embeds: [
         new EmbedBuilder()
           .setTitle('📋 Boss List')
-          .setDescription(Object.values(bosses).map(b => `• ${b.name}`).join('\n'))
+          .setDescription(
+            Object.values(bosses)
+              .map(b => `• ${b.name} (${b.hours}h)`)
+              .join('\n')
+          )
       ]
     });
+  }
+
+  if (cmd === '!reset') {
+    kills = {};
+    saveData();
+    return message.reply('🔄 All boss data reset.');
   }
 });
 
@@ -206,6 +222,7 @@ client.on('messageCreate', message => {
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
+  seedTodaysKills();
 });
 
 client.login(process.env.TOKEN);
