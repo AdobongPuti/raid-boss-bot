@@ -12,7 +12,7 @@ const client = new Client({
 const DATA_FILE = './bossdata.json';
 
 /* =========================
-   💾 PERSISTENT STORAGE
+   💾 STORAGE
 ========================= */
 let kills = fs.existsSync(DATA_FILE)
   ? JSON.parse(fs.readFileSync(DATA_FILE))
@@ -23,7 +23,7 @@ function saveData() {
 }
 
 /* =========================
-   ⏳ TIME FORMAT
+   ⏳ FORMAT TIME
 ========================= */
 function formatTime(ms) {
   const m = Math.floor(ms / 60000);
@@ -33,7 +33,7 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE
+   ⚔️ BOSSES
 ========================= */
 const bosses = {
   venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin", spawnTime: "08:36 AM" },
@@ -95,32 +95,44 @@ function seedTodaysKills() {
 }
 
 /* =========================
-   📊 DASHBOARD (FIXED)
+   📊 DASHBOARD (UPDATED FORMAT)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
   const entries = Object.entries(bosses).map(([key, b]) => {
 
+    const locationLine = `Location: ${b.location}`;
+
+    // 🟢 ALIVE
     if (!kills[key]) {
       return `• **${b.name}**
-🟢 Spawn: ${b.spawnTime || "Unknown"}
 🟢 Alive
-📍 ${b.location}`;
+${locationLine}`;
     }
 
-    const respawn = kills[key] + b.hours * 3600000;
-    const diff = respawn - now;
+    // 🔴 DEAD → calculate respawn
+    const respawnMs = kills[key] + b.hours * 3600000;
+    const diff = respawnMs - now;
+
+    const spawnDate = new Date(respawnMs);
+    const spawnLine = `Spawns in: ${spawnDate.toLocaleString()}`;
+
+    if (diff > 0) {
+      return `• **${b.name}**
+🔴 ${spawnLine}
+⏳ Remaining: ${formatTime(diff)}
+${locationLine}`;
+    }
 
     return `• **${b.name}**
-🟢 Spawn: ${b.spawnTime || "Unknown"}
-${diff > 0 ? `🔴 ${formatTime(diff)}` : "🟢 Ready"}
-📍 ${b.location}`;
+🟢 Ready
+${locationLine}`;
   });
 
   const chunks = [];
   while (entries.length) {
-    chunks.push(entries.splice(0, 10).join('\n'));
+    chunks.push(entries.splice(0, 10).join('\n\n'));
   }
 
   const embed = new EmbedBuilder()
@@ -130,7 +142,7 @@ ${diff > 0 ? `🔴 ${formatTime(diff)}` : "🟢 Ready"}
 
   chunks.forEach((chunk, i) => {
     embed.addFields({
-      name: i === 0 ? '⏳ Boss Status' : '\u200b',
+      name: i === 0 ? '📊 Boss Status' : '\u200b',
       value: chunk
     });
   });
@@ -148,32 +160,24 @@ client.on('messageCreate', message => {
   const cmd = args[0];
   const bossKey = args[1];
 
-  /* 📊 DASHBOARD */
   if (cmd === '!dashboard') {
     return message.reply({ embeds: [buildDashboard()] });
   }
 
-  /* 🟥 DEAD */
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-
     kills[bossKey] = Date.now();
     saveData();
-
     return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
   }
 
-  /* 🟢 ALIVE */
   if (cmd === '!alive') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-
     delete kills[bossKey];
     saveData();
-
     return message.reply(`🟢 ${bosses[bossKey].name} is alive.`);
   }
 
-  /* 🕒 SET DEAD */
   if (cmd === '!setdead') {
     const mins = parseInt(args[2]);
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
@@ -184,7 +188,6 @@ client.on('messageCreate', message => {
     return message.reply(`🕒 ${bosses[bossKey].name} set ${mins} min ago.`);
   }
 
-  /* 📋 BOSSES */
   if (cmd === '!bosses') {
     return message.reply({
       embeds: [
@@ -199,7 +202,6 @@ client.on('messageCreate', message => {
     });
   }
 
-  /* 🔄 RESET */
   if (cmd === '!reset') {
     kills = {};
     saveData();
