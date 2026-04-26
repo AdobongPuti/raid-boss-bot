@@ -63,7 +63,7 @@ const bosses = {
   /* ===== INTERVAL BOSSES ===== */
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
-  ego: { name: "Ego", type: "interval", hours: 10, location: "Ulan Canyon" },
+  ego: { name: "Ego", type: "interval", hours: 21, location: "Ulan Canyon" },
 
   lady_dalia: { name: "Lady Dalia", type: "interval", hours: 18, location: "Twilight Hill" },
 
