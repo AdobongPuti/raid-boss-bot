@@ -11,19 +11,18 @@ const client = new Client({
 
 const DATA_FILE = './bossdata.json';
 
-/* =========================
-   💾 STORAGE
-========================= */
 let kills = fs.existsSync(DATA_FILE)
   ? JSON.parse(fs.readFileSync(DATA_FILE))
   : {};
+
+let alerted = {}; // prevents duplicate alerts
 
 function saveData() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(kills, null, 2));
 }
 
 /* =========================
-   ⏳ FORMAT TIME
+   ⏳ TIME FORMAT
 ========================= */
 function formatTime(ms) {
   const m = Math.floor(ms / 60000);
@@ -33,131 +32,157 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE
+   📅 SCHEDULE HELPER
 ========================= */
-const bosses = {
-  venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin", spawnTime: "08:36 AM" },
-  viorent: { name: "Viorent", hours: 10, location: "Crescent Lake", spawnTime: "08:36 AM" },
-  ego: { name: "Ego", hours: 10, location: "Ulan Canyon", spawnTime: "12:33 AM" },
+function getNextScheduleTimestamp(day, time) {
+  const now = new Date();
 
-  dalia: { name: "Lady Dalia", hours: 18, location: "Twilight Hill", spawnTime: "12:48 AM" },
+  const [hh, mm] = time.split(':').map(Number);
 
-  gareth: { name: "Gareth", hours: 32, location: "DM1", spawnTime: "04:33 AM" },
-  braudmore: { name: "Baron Braudmore", hours: 32, location: "BoT", spawnTime: "04:38 AM" },
+  const target = new Date(now);
+  target.setHours(hh, mm, 0, 0);
 
-  titore: { name: "Titore", hours: 24, location: "DM2", spawnTime: "07:28 AM" },
+  let diff = day - target.getDay();
 
-  aquleus: { name: "General Aquleus", hours: 29, location: "ToT2", spawnTime: "09:39 AM" },
-  amentis: { name: "Amentis", hours: 29, location: "LoG", spawnTime: "09:45 AM" },
-
-  undomiel: { name: "Undomiel", hours: 24, location: "Secret Lab", spawnTime: "12:23 PM" },
-  livera: { name: "Livera", hours: 24, location: "Protector's Ruins", spawnTime: "12:23 PM" },
-  araneo: { name: "Araneo", hours: 24, location: "ToT1", spawnTime: "12:23 PM" },
-
-  saphirus: { name: "Saphirus", hours: 24, location: "Crescent Lake", spawnTime: "05:00 PM" },
-
-  tumier: { name: "Tumier", hours: 37, location: "Garbana 3F", spawnTime: "07:00 PM" },
-  rakajeth: { name: "Rakajeth", hours: 24, location: "Dracas", spawnTime: "07:00 PM" },
-
-  benji: { name: "Benji", hours: 24, location: "Barbas", spawnTime: "09:00 PM" },
-
-  nevaeh: { name: "Nevaeh", hours: 24, location: "Kransia", spawnTime: "10:00 PM" }
-};
-
-/* =========================
-   🔥 TODAY SEED
-========================= */
-function seedTodaysKills() {
-  const data = {
-    ego: 0,
-    dalia: 15,
-    gareth: 273,
-    braudmore: 278,
-    titore: 448,
-    venatus: 516,
-    viorent: 516,
-    aquleus: 579,
-    amentis: 585,
-    undomiel: 743,
-    livera: 743,
-    araneo: 743
-  };
-
-  const now = Date.now();
-
-  for (const key in data) {
-    if (bosses[key]) {
-      kills[key] = now - data[key] * 60000;
-    }
+  if (diff < 0 || (diff === 0 && target < now)) {
+    diff += 7;
   }
 
-  saveData();
+  target.setDate(target.getDate() + diff);
+
+  return target.getTime();
 }
 
 /* =========================
-   📊 DASHBOARD (SORTED BY NEAREST SPAWN)
+   ⚔️ BOSSES DATABASE
+========================= */
+const bosses = {
+  venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
+  viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
+  ego: { name: "Ego", type: "interval", hours: 10, location: "Ulan Canyon" },
+
+  clemantis: {
+    name: "Clemantis",
+    type: "schedule",
+    location: "Corrupted Basin",
+    schedule: [
+      { day: 1, time: "11:30" },
+      { day: 4, time: "19:00" }
+    ]
+  },
+
+  saphirus: {
+    name: "Saphirus",
+    type: "schedule",
+    location: "Crescent Lake",
+    schedule: [
+      { day: 0, time: "17:00" },
+      { day: 2, time: "11:30" }
+    ]
+  },
+
+  benji: {
+    name: "Benji",
+    type: "schedule",
+    location: "Barbas",
+    schedule: [{ day: 0, time: "21:00" }]
+  }
+};
+
+/* =========================
+   🔔 ALERT SYSTEM (+ @HERE)
+========================= */
+function checkAlerts() {
+  const now = Date.now();
+
+  Object.entries(bosses).forEach(([key, b]) => {
+
+    if (!kills[key]) return;
+
+    let nextSpawn;
+
+    if (b.type === "interval") {
+      nextSpawn = kills[key] + b.hours * 3600000;
+    }
+
+    if (b.type === "schedule") {
+      const times = b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time));
+      nextSpawn = Math.min(...times);
+    }
+
+    const diff = nextSpawn - now;
+
+    // 🔔 10 MIN BEFORE SPAWN
+    if (diff <= 10 * 60000 && diff > 9 * 60000) {
+
+      const alertKey = `${key}_${nextSpawn}`;
+      if (alerted[alertKey]) return;
+
+      alerted[alertKey] = true;
+
+      // 🎯 PICK CHANNEL (first text channel bot can see)
+      const channel = client.channels.cache
+        .filter(c => c.isTextBased())
+        .first();
+
+      if (channel) {
+        channel.send(
+          `@here 🔔 **${b.name}** will spawn in **10 minutes!**\n📍 Location: ${b.location}`
+        );
+      }
+    }
+
+    // cleanup old alerts
+    if (diff < -60000) {
+      delete alerted[`${key}_${nextSpawn}`];
+    }
+  });
+}
+
+/* =========================
+   📊 DASHBOARD (optional kept minimal here)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
   const list = Object.entries(bosses).map(([key, b]) => {
 
-    const locationLine = `Location: ${b.location}`;
+    const loc = `Location: ${b.location}`;
 
-    // 🟢 Alive
     if (!kills[key]) {
       return {
-        text: `• **${b.name}**\n🟢 Alive\n${locationLine}`,
-        sortValue: Infinity
+        text: `• **${b.name}**\n🟢 Alive\n${loc}`,
+        sort: Infinity
       };
     }
 
-    // 🔴 Dead
-    const respawnMs = kills[key] + b.hours * 3600000;
-    const diff = respawnMs - now;
+    let nextSpawn;
 
-    const spawnDate = new Date(respawnMs);
-
-    if (diff > 0) {
-      return {
-        text:
-          `• **${b.name}**\n` +
-          `🔴 Spawns in: ${spawnDate.toLocaleString()}\n` +
-          `⏳ Remaining: ${formatTime(diff)}\n` +
-          `${locationLine}`,
-        sortValue: diff
-      };
+    if (b.type === "interval") {
+      nextSpawn = kills[key] + b.hours * 3600000;
+    } else {
+      const times = b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time));
+      nextSpawn = Math.min(...times);
     }
+
+    const diff = nextSpawn - now;
 
     return {
-      text: `• **${b.name}**\n🟢 Ready\n${locationLine}`,
-      sortValue: 0
+      text:
+        `• **${b.name}**\n` +
+        `⏳ In: ${formatTime(diff)}\n` +
+        `${loc}`,
+      sort: diff
     };
   });
 
-  // ⚡ SORT: nearest spawn first
-  list.sort((a, b) => a.sortValue - b.sortValue);
+  list.sort((a, b) => a.sort - b.sort);
 
-  const entries = list.map(x => x.text);
-
-  const chunks = [];
-  while (entries.length) {
-    chunks.push(entries.splice(0, 10).join('\n\n'));
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle('⚔️ RAID BOSS DASHBOARD (Nearest Spawn Priority)')
+  return new EmbedBuilder()
+    .setTitle('⚔️ RAID DASHBOARD')
     .setColor(0xf1c40f)
+    .setDescription(list.map(x => x.text).join('\n\n'))
     .setTimestamp();
-
-  chunks.forEach((chunk, i) => {
-    embed.addFields({
-      name: i === 0 ? '📊 Priority List' : '\u200b',
-      value: chunk
-    });
-  });
-
-  return embed;
 }
 
 /* =========================
@@ -195,26 +220,6 @@ client.on('messageCreate', message => {
     saveData();
     return message.reply(`🕒 ${bosses[bossKey].name} set ${mins} min ago.`);
   }
-
-  if (cmd === '!bosses') {
-    return message.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('📋 Boss List')
-          .setDescription(
-            Object.values(bosses)
-              .map(b => `• ${b.name} (${b.hours}h)`)
-              .join('\n')
-          )
-      ]
-    });
-  }
-
-  if (cmd === '!reset') {
-    kills = {};
-    saveData();
-    return message.reply('🔄 All boss data reset.');
-  }
 });
 
 /* =========================
@@ -222,7 +227,9 @@ client.on('messageCreate', message => {
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
-  seedTodaysKills();
+
+  // 🔔 RUN ALERT CHECK EVERY MINUTE
+  setInterval(checkAlerts, 60 * 1000);
 });
 
 client.login(process.env.TOKEN);
