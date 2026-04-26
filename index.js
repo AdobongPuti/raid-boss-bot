@@ -56,9 +56,11 @@ function getNextScheduleTimestamp(day, time) {
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE
+   ⚔️ BOSSES DATABASE (FULL UPDATED LIST)
 ========================= */
 const bosses = {
+
+  /* ===== INTERVAL BOSSES ===== */
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 10, location: "Ulan Canyon" },
@@ -68,6 +70,38 @@ const bosses = {
   livera: { name: "Livera", type: "interval", hours: 24, location: "Protector's Ruins" },
   araneo: { name: "Araneo", type: "interval", hours: 24, location: "ToT 1" },
   undomiel: { name: "Undomiel", type: "interval", hours: 24, location: "Secret Lab" },
+
+  gareth: { name: "Gareth", type: "interval", hours: 32, location: "DM1" },
+  braudmore: { name: "Baron Braudmore", type: "interval", hours: 32, location: "BoT" },
+
+  titore: { name: "Titore", type: "interval", hours: 37, location: "DM2" },
+
+  aquleus: { name: "General Aquleus", type: "interval", hours: 29, location: "ToT2" },
+  amentis: { name: "Amentis", type: "interval", hours: 29, location: "LoG" },
+
+  shuliar: { name: "Shuliar", type: "interval", hours: 35, location: "RoW" },
+  larba: { name: "Larba", type: "interval", hours: 35, location: "RoW" },
+  catena: { name: "Catena", type: "interval", hours: 35, location: "DM3" },
+
+  wannitas: { name: "Wannitas", type: "interval", hours: 48, location: "PoR" },
+  metus: { name: "Metus", type: "interval", hours: 48, location: "PoR" },
+  duplican: { name: "Duplican", type: "interval", hours: 48, location: "PoR" },
+
+  secreta: { name: "Secreta", type: "interval", hours: 62, location: "Silvergrass" },
+  ordo: { name: "Ordo", type: "interval", hours: 62, location: "Silvergrass" },
+  asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
+  supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
+
+  /* ===== SCHEDULE BOSSES ===== */
+  clemantis: {
+    name: "Clemantis",
+    type: "schedule",
+    location: "Corrupted Basin",
+    schedule: [
+      { day: 1, time: "11:30" }, // Monday
+      { day: 4, time: "19:00" }  // Thursday
+    ]
+  },
 
   saphirus: {
     name: "Saphirus",
@@ -79,18 +113,95 @@ const bosses = {
     ]
   },
 
+  neutro: {
+    name: "Neutro",
+    type: "schedule",
+    location: "Desert of Screaming",
+    schedule: [
+      { day: 2, time: "19:00" },
+      { day: 4, time: "11:30" }
+    ]
+  },
+
+  thymele: {
+    name: "Thymele",
+    type: "schedule",
+    location: "Twilight Hill",
+    schedule: [
+      { day: 1, time: "19:00" },
+      { day: 3, time: "11:30" }
+    ]
+  },
+
+  milavy: {
+    name: "Milavy",
+    type: "schedule",
+    location: "TOT3",
+    schedule: [{ day: 6, time: "15:00" }]
+  },
+
+  ringor: {
+    name: "Ringor",
+    type: "schedule",
+    location: "BoT",
+    schedule: [{ day: 6, time: "17:00" }]
+  },
+
+  roderick: {
+    name: "Roderick",
+    type: "schedule",
+    location: "Unknown",
+    schedule: [{ day: 5, time: "19:00" }]
+  },
+
+  auraq: {
+    name: "Auraq",
+    type: "schedule",
+    location: "RoW",
+    schedule: [
+      { day: 3, time: "21:00" },
+      { day: 5, time: "22:00" }
+    ]
+  },
+
   benji: {
     name: "Benji",
     type: "schedule",
     location: "Barbas",
     schedule: [{ day: 0, time: "21:00" }]
+  },
+
+  libitina: {
+    name: "Libitina",
+    type: "schedule",
+    location: "Unknown",
+    schedule: [
+      { day: 1, time: "21:00" },
+      { day: 6, time: "21:00" }
+    ]
+  },
+
+  rakajeth: {
+    name: "Rakajeth",
+    type: "schedule",
+    location: "Dracas",
+    schedule: [
+      { day: 2, time: "22:00" },
+      { day: 0, time: "19:00" }
+    ]
+  },
+
+  tumier: {
+    name: "Tumier",
+    type: "schedule",
+    location: "Garbana 3F",
+    schedule: [{ day: 0, time: "19:00" }]
   }
 
-  // 👉 ADD FULL BOSSES HERE (already supported system-wide)
 };
 
 /* =========================
-   🔔 ALERT SYSTEM (10 MIN BEFORE SPAWN)
+   🔔 ALERT SYSTEM
 ========================= */
 function checkAlerts() {
   const now = Date.now();
@@ -103,9 +214,7 @@ function checkAlerts() {
     if (b.type === "interval") {
       nextSpawn = kills[key] + b.hours * 3600000;
     } else {
-      nextSpawn = Math.min(
-        ...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time))
-      );
+      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
     }
 
     const diff = nextSpawn - now;
@@ -134,7 +243,7 @@ function checkAlerts() {
 }
 
 /* =========================
-   📊 DASHBOARD (TOP 25 + DATE/TIME)
+   📊 DASHBOARD (TOP 25)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
@@ -155,9 +264,7 @@ function buildDashboard() {
     if (b.type === "interval") {
       nextSpawn = kills[key] + b.hours * 3600000;
     } else {
-      nextSpawn = Math.min(
-        ...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time))
-      );
+      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
     }
 
     const diff = nextSpawn - now;
@@ -235,7 +342,6 @@ client.on('messageCreate', message => {
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
-
   setInterval(checkAlerts, 60 * 1000);
 });
 
