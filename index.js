@@ -268,9 +268,14 @@ client.on('messageCreate', message => {
     });
   }
 
-  if (cmd === '!dashboard') {
+ if (cmd === '!dashboard') {
+  try {
     return message.reply({ embeds: [buildDashboard()] });
+  } catch (err) {
+    console.error(err);
+    return message.reply('❌ Dashboard error. Check bot logs.');
   }
+}
 
   if (cmd === '!reset') {
     kills = {};
