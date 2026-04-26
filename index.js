@@ -12,7 +12,7 @@ const client = new Client({
 const DATA_FILE = './bossdata.json';
 
 /* =========================
-   💾 DATA STORAGE
+   💾 STORAGE
 ========================= */
 let kills = fs.existsSync(DATA_FILE)
   ? JSON.parse(fs.readFileSync(DATA_FILE))
@@ -33,25 +33,20 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE
+   ⚔️ BOSSES
 ========================= */
 const bosses = {
-
-  /* 🔵 10H BOSSES */
   venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", hours: 10, location: "Ulan Canyon" },
 
-  /* 🟡 18H */
   dalia: { name: "Lady Dalia", hours: 18, location: "Twilight Hill" },
 
-  /* 🔵 24H */
   livera: { name: "Livera", hours: 24, location: "Protector's Ruins" },
   araneo: { name: "Araneo", hours: 24, location: "TOT1" },
   undomiel: { name: "Undomiel", hours: 24, location: "Secret Lab" },
   titore: { name: "Titore", hours: 24, location: "DM2" },
 
-  /* 🟠 29–32H */
   aquleus: { name: "General Aquleus", hours: 29, location: "TOT2" },
   amentis: { name: "Amentis", hours: 29, location: "LOG" },
 
@@ -66,18 +61,15 @@ const bosses = {
   auraq: { name: "Auraq", hours: 35, location: "Garbana 2" },
   tumier: { name: "Tumier", hours: 37, location: "Garbana 3F" },
 
-  /* 🔴 48H */
   metus: { name: "Metus", hours: 48, location: "PoR" },
   wannitas: { name: "Wannitas", hours: 48, location: "PoR" },
   duplican: { name: "Duplican", hours: 48, location: "PoR" },
 
-  /* ⚫ 62H */
   secreta: { name: "Secreta", hours: 62, location: "Silvergrass" },
   ordo: { name: "Ordo", hours: 62, location: "Silvergrass" },
   asta: { name: "Asta", hours: 62, location: "Silvergrass" },
   supore: { name: "Supore", hours: 62, location: "Silvergrass" },
 
-  /* 📅 SCHEDULE BOSSES */
   clemantis: { name: "Clemantis", schedule: true, location: "Corrupted Basin" },
   saphirus: { name: "Saphirus", schedule: true, location: "Crescent Lake" },
   neutro: { name: "Neutro", schedule: true, location: "Desert of Screaming" },
@@ -92,115 +84,51 @@ const bosses = {
 };
 
 /* =========================
-   🔥 TODAY SEED SYSTEM
-========================= */
-function seedTodaysKills() {
-  const data = {
-    /* 🌅 EARLY */
-    ego: 0,
-    dalia: 15,
-    gareth: 273,
-    braudmore: 278,
-    titore: 448,
-    venatus: 516,
-    viorent: 516,
-    aquleus: 579,
-    amentis: 585,
-
-    /* 🌞 12:23 PM */
-    undomiel: 723,
-    livera: 723,
-    araneo: 723,
-
-    /* 🌇 5:00 PM */
-    saphirus: 1000,
-
-    /* 🌆 7:00 PM */
-    tumier: 1140,
-    rakajeth: 1140,
-
-    /* 🌙 NIGHT */
-    benji: 1260,
-    nevaeh: 1320
-  };
-
-  const now = Date.now();
-
-  for (const key in data) {
-    if (bosses[key]) {
-      kills[key] = now - data[key] * 60000;
-    }
-  }
-
-  saveData();
-}
-
-/* =========================
-   📊 DASHBOARD
+   🔥 DASHBOARD FIX (IMPORTANT)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
-  return new EmbedBuilder()
+  const entries = Object.entries(bosses).map(([key, b]) => {
+
+    if (b.schedule) {
+      return `• **${b.name}** — 📅 Scheduled\n📍 ${b.location}`;
+    }
+
+    if (!kills[key]) {
+      return `• **${b.name}** — 🟢 Alive\n📍 ${b.location}`;
+    }
+
+    const respawn = kills[key] + b.hours * 3600000;
+    const diff = respawn - now;
+
+    if (diff > 0) {
+      return `• **${b.name}** — 🔴 ${formatTime(diff)}\n📍 ${b.location}`;
+    }
+
+    return `• **${b.name}** — 🟢 Ready\n📍 ${b.location}`;
+  });
+
+  // 🔥 SPLIT INTO SAFE CHUNKS (FIXES ERROR)
+  const chunks = [];
+  while (entries.length) {
+    chunks.push(entries.splice(0, 10).join('\n'));
+  }
+
+  const embed = new EmbedBuilder()
     .setTitle('⚔️ RAID BOSS DASHBOARD')
     .setColor(0xf1c40f)
-    .addFields({
-      name: '⏳ Status',
-      value: Object.entries(bosses)
-        .map(([key, b]) => {
-
-          if (b.schedule) {
-            return `• **${b.name}** — 📅 Scheduled\n📍 ${b.location}`;
-          }
-
-          if (!kills[key]) {
-            return `• **${b.name}** — 🟢 Alive\n📍 ${b.location}`;
-          }
-
-          const respawn = kills[key] + b.hours * 3600000;
-          const diff = respawn - now;
-
-          if (diff > 0) {
-            return `• **${b.name}** — 🔴 ${formatTime(diff)}\n📍 ${b.location}`;
-          }
-
-          return `• **${b.name}** — 🟢 Ready\n📍 ${b.location}`;
-        })
-        .join('\n')
-    })
-    .setFooter({ text: 'Raid Boss Tracker System' })
     .setTimestamp();
+
+  chunks.forEach((chunk, i) => {
+    embed.addFields({
+      name: i === 0 ? '⏳ Boss Status' : '\u200b',
+      value: chunk
+    });
+  });
+
+  return embed;
 }
-
-/* =========================
-   🔔 ALERT SYSTEM
-========================= */
-setInterval(() => {
-  const now = Date.now();
-
-  const channel = client.channels.cache.find(
-    c => c.name === '⌛〡fb-spawntime'
-  );
-
-  if (!channel) return;
-
-  for (const key in bosses) {
-    const boss = bosses[key];
-
-    if (boss.schedule) continue;
-    if (!kills[key]) continue;
-
-    const respawn = kills[key] + boss.hours * 3600000;
-    const alertTime = respawn - 10 * 60000;
-
-    if (now >= alertTime && now <= alertTime + 60000) {
-      channel.send({
-        content: `@here 🔔 ${boss.name} spawning in 10 minutes!\n📍 ${boss.location}`,
-        allowedMentions: { parse: ['here'] }
-      });
-    }
-  }
-}, 60000);
 
 /* =========================
    🚀 COMMANDS
@@ -212,85 +140,16 @@ client.on('messageCreate', message => {
   const cmd = args[0];
   const bossKey = args[1];
 
-  if (cmd === '!dead') {
-    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss.');
-
-    kills[bossKey] = Date.now();
-    saveData();
-
-    return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
-  }
-
-  if (cmd === '!alive') {
-    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-
-    delete kills[bossKey];
-    saveData();
-
-    return message.reply(`🟢 ${bosses[bossKey].name} is alive.`);
-  }
-
-  if (cmd === '!setdead') {
-    const minutesAgo = parseInt(args[2]);
-
-    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss.');
-
-    kills[bossKey] = Date.now() - minutesAgo * 60000;
-    saveData();
-
-    return message.reply(`🕒 ${bosses[bossKey].name} set ${minutesAgo} min ago.`);
-  }
-
-  if (cmd === '!next') {
-    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss.');
-
-    const boss = bosses[bossKey];
-    const respawn = new Date(kills[bossKey] + boss.hours * 3600000);
-
-    return message.reply(`⏰ Next spawn: ${respawn.toLocaleString()}`);
-  }
-
-  if (cmd === '!bosses') {
-    return message.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('📋 Boss List')
-          .setColor(0x2ecc71)
-          .setDescription(
-            Object.values(bosses)
-              .map(b => `• ${b.name} ${b.schedule ? '(Scheduled)' : `(${b.hours}h)`}`)
-              .join('\n')
-          )
-      ]
-    });
-  }
-
- if (cmd === '!dashboard') {
-  try {
+  if (cmd === '!dashboard') {
     return message.reply({ embeds: [buildDashboard()] });
-  } catch (err) {
-    console.error(err);
-    return message.reply('❌ Dashboard error. Check bot logs.');
-  }
-}
-
-  if (cmd === '!reset') {
-    kills = {};
-    saveData();
-    return message.reply('🔄 Reset complete.');
   }
 });
 
 /* =========================
-   🔐 START BOT
+   🔐 READY
 ========================= */
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
-
-  seedTodaysKills(); // 🔥 AUTO LOAD TODAY DATA
 });
 
 client.login(process.env.TOKEN);
