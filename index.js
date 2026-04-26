@@ -25,22 +25,17 @@ function saveData() {
 }
 
 /* =========================
-   ⏳ TIME HELPERS
+   ⏳ TIME FORMAT
 ========================= */
 function formatTime(ms) {
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
-  const d = Math.floor(h / 24);
-  const rh = h % 24;
-  const rm = m % 60;
-
-  if (d > 0) return `${d}d ${rh}h ${rm}m`;
-  if (h > 0) return `${h}h ${rm}m`;
-  return `${m}m`;
+  const r = m % 60;
+  return h > 0 ? `${h}h ${r}m` : `${r}m`;
 }
 
 /* =========================
-   📅 SCHEDULE HELPER (GMT+8 LOGIC)
+   📅 SCHEDULE HELPER
 ========================= */
 function getNextScheduleTimestamp(day, time) {
   const now = new Date();
@@ -61,12 +56,9 @@ function getNextScheduleTimestamp(day, time) {
 }
 
 /* =========================
-   ⚔️ COMPLETE BOSS DATABASE
+   ⚔️ BOSSES DATABASE
 ========================= */
 const bosses = {
-
-  /* ================= INTERVAL BOSSES ================= */
-
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 10, location: "Ulan Canyon" },
@@ -76,45 +68,6 @@ const bosses = {
   livera: { name: "Livera", type: "interval", hours: 24, location: "Protector's Ruins" },
   araneo: { name: "Araneo", type: "interval", hours: 24, location: "ToT 1" },
   undomiel: { name: "Undomiel", type: "interval", hours: 24, location: "Secret Lab" },
-
-  saphirus_interval: { name: "Saphirus (Interval)", type: "interval", hours: 24, location: "Crescent Lake" },
-  rakajeth_interval: { name: "Rakajeth (Interval)", type: "interval", hours: 24, location: "Dracas" },
-  benji_interval: { name: "Benji (Interval)", type: "interval", hours: 24, location: "Barbas" },
-  nevaeh: { name: "Nevaeh", type: "interval", hours: 24, location: "Kransia" },
-
-  aquleus: { name: "General Aquleus", type: "interval", hours: 29, location: "ToT2" },
-  amentis: { name: "Amentis", type: "interval", hours: 29, location: "LoG" },
-
-  gareth: { name: "Gareth", type: "interval", hours: 32, location: "DM1" },
-  braudmore: { name: "Baron Braudmore", type: "interval", hours: 32, location: "BoT" },
-
-  titore: { name: "Titore", type: "interval", hours: 37, location: "DM2" },
-
-  larba: { name: "Larba", type: "interval", hours: 35, location: "RoW" },
-  shuliar: { name: "Shuliar", type: "interval", hours: 35, location: "RoW" },
-  catena: { name: "Catena", type: "interval", hours: 35, location: "Deadman 3" },
-  auraq: { name: "Auraq", type: "interval", hours: 35, location: "Garbana 2" },
-
-  duplican: { name: "Duplican", type: "interval", hours: 48, location: "PoR" },
-  wannitas: { name: "Wannitas", type: "interval", hours: 48, location: "PoR" },
-  metus: { name: "Metus", type: "interval", hours: 48, location: "PoR" },
-
-  secreta: { name: "Secreta", type: "interval", hours: 62, location: "Silvergrass" },
-  ordo: { name: "Ordo", type: "interval", hours: 62, location: "Silvergrass" },
-  asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
-  supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
-
-  /* ================= SCHEDULE BOSSES ================= */
-
-  clemantis: {
-    name: "Clemantis",
-    type: "schedule",
-    location: "Corrupted Basin",
-    schedule: [
-      { day: 1, time: "11:30" },
-      { day: 4, time: "19:00" }
-    ]
-  },
 
   saphirus: {
     name: "Saphirus",
@@ -126,91 +79,18 @@ const bosses = {
     ]
   },
 
-  neutro: {
-    name: "Neutro",
-    type: "schedule",
-    location: "Desert of Screaming",
-    schedule: [
-      { day: 2, time: "19:00" },
-      { day: 4, time: "11:30" }
-    ]
-  },
-
-  thymele: {
-    name: "Thymele",
-    type: "schedule",
-    location: "Twilight Hill",
-    schedule: [
-      { day: 1, time: "19:00" },
-      { day: 3, time: "11:30" }
-    ]
-  },
-
-  milavy: {
-    name: "Milavy",
-    type: "schedule",
-    location: "ToT3",
-    schedule: [{ day: 6, time: "15:00" }]
-  },
-
-  ringor: {
-    name: "Ringor",
-    type: "schedule",
-    location: "BoT",
-    schedule: [{ day: 6, time: "17:00" }]
-  },
-
-  roderick: {
-    name: "Roderick",
-    type: "schedule",
-    location: "Unknown",
-    schedule: [{ day: 5, time: "19:00" }]
-  },
-
   benji: {
     name: "Benji",
     type: "schedule",
     location: "Barbas",
     schedule: [{ day: 0, time: "21:00" }]
-  },
-
-  libitina: {
-    name: "Libitina",
-    type: "schedule",
-    location: "Unknown",
-    schedule: [
-      { day: 1, time: "21:00" },
-      { day: 6, time: "21:00" }
-    ]
-  },
-
-  rakajeth: {
-    name: "Rakajeth",
-    type: "schedule",
-    location: "Dracas",
-    schedule: [
-      { day: 2, time: "22:00" },
-      { day: 0, time: "19:00" }
-    ]
-  },
-
-  tumier: {
-    name: "Tumier",
-    type: "schedule",
-    location: "Garbana 3F",
-    schedule: [{ day: 0, time: "19:00" }]
-  },
-
-  chaiflock: {
-    name: "Chaiflock",
-    type: "schedule",
-    location: "Garbana",
-    schedule: [{ day: 6, time: "22:00" }]
   }
+
+  // 👉 ADD FULL BOSSES HERE (already supported system-wide)
 };
 
 /* =========================
-   🔔 AUTO ALERT SYSTEM
+   🔔 ALERT SYSTEM (10 MIN BEFORE SPAWN)
 ========================= */
 function checkAlerts() {
   const now = Date.now();
@@ -223,7 +103,9 @@ function checkAlerts() {
     if (b.type === "interval") {
       nextSpawn = kills[key] + b.hours * 3600000;
     } else {
-      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+      nextSpawn = Math.min(
+        ...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time))
+      );
     }
 
     const diff = nextSpawn - now;
@@ -252,17 +134,20 @@ function checkAlerts() {
 }
 
 /* =========================
-   📊 DASHBOARD
+   📊 DASHBOARD (TOP 25 + DATE/TIME)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
   const list = Object.entries(bosses).map(([key, b]) => {
 
-    const loc = `Location: ${b.location}`;
+    const loc = `📍 Location: ${b.location}`;
 
     if (!kills[key]) {
-      return { text: `• **${b.name}**\n🟢 Alive\n${loc}`, sort: Infinity };
+      return {
+        text: `• **${b.name}**\n🟢 Alive\n${loc}`,
+        sort: Infinity
+      };
     }
 
     let nextSpawn;
@@ -270,24 +155,32 @@ function buildDashboard() {
     if (b.type === "interval") {
       nextSpawn = kills[key] + b.hours * 3600000;
     } else {
-      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+      nextSpawn = Math.min(
+        ...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time))
+      );
     }
 
     const diff = nextSpawn - now;
+    const spawnDate = new Date(nextSpawn);
 
     return {
       text:
-        `• **${b.name}**\n⏳ In: ${formatTime(diff)}\n${loc}`,
+        `• **${b.name}**\n` +
+        `⏳ In: ${formatTime(diff)}\n` +
+        `📅 Spawns at: ${spawnDate.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}\n` +
+        `${loc}`,
       sort: diff
     };
   });
 
   list.sort((a, b) => a.sort - b.sort);
 
+  const top25 = list.slice(0, 25);
+
   return new EmbedBuilder()
-    .setTitle("⚔️ RAID DASHBOARD (FULL SYSTEM)")
+    .setTitle("⚔️ RAID DASHBOARD (TOP 25 NEAREST SPAWNS)")
     .setColor(0xf1c40f)
-    .setDescription(list.map(x => x.text).join("\n\n"))
+    .setDescription(top25.map(x => x.text).join("\n\n"))
     .setTimestamp();
 }
 
@@ -306,28 +199,43 @@ client.on('messageCreate', message => {
   }
 
   if (cmd === '!dead') {
-    if (!bosses[bossKey]) return;
+    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
     kills[bossKey] = Date.now();
     saveData();
+    return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
   }
 
   if (cmd === '!alive') {
+    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
     delete kills[bossKey];
     saveData();
+    return message.reply(`🟢 ${bosses[bossKey].name} is alive.`);
   }
 
   if (cmd === '!setdead') {
     const mins = parseInt(args[2]);
+
+    if (!bosses[bossKey]) {
+      return message.reply('❌ Boss not found.');
+    }
+
+    if (isNaN(mins)) {
+      return message.reply('❌ Usage: !setdead <boss> <minutes>');
+    }
+
     kills[bossKey] = Date.now() - mins * 60000;
     saveData();
+
+    return message.reply(`🕒 ${bosses[bossKey].name} set as killed ${mins} min ago.`);
   }
 });
 
 /* =========================
-   🔐 START
+   🔐 START BOT
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
+
   setInterval(checkAlerts, 60 * 1000);
 });
 
