@@ -33,7 +33,7 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSSES
+   ⚔️ BOSSES DATABASE
 ========================= */
 const bosses = {
   venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin", spawnTime: "08:36 AM" },
@@ -65,7 +65,7 @@ const bosses = {
 };
 
 /* =========================
-   🔥 TODAY SEED (KILLS)
+   🔥 TODAY SEED
 ========================= */
 function seedTodaysKills() {
   const data = {
@@ -95,40 +95,50 @@ function seedTodaysKills() {
 }
 
 /* =========================
-   📊 DASHBOARD (UPDATED FORMAT)
+   📊 DASHBOARD (SORTED BY NEAREST SPAWN)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
-  const entries = Object.entries(bosses).map(([key, b]) => {
+  const list = Object.entries(bosses).map(([key, b]) => {
 
     const locationLine = `Location: ${b.location}`;
 
-    // 🟢 ALIVE
+    // 🟢 Alive
     if (!kills[key]) {
-      return `• **${b.name}**
-🟢 Alive
-${locationLine}`;
+      return {
+        text: `• **${b.name}**\n🟢 Alive\n${locationLine}`,
+        sortValue: Infinity
+      };
     }
 
-    // 🔴 DEAD → calculate respawn
+    // 🔴 Dead
     const respawnMs = kills[key] + b.hours * 3600000;
     const diff = respawnMs - now;
 
     const spawnDate = new Date(respawnMs);
-    const spawnLine = `Spawns in: ${spawnDate.toLocaleString()}`;
 
     if (diff > 0) {
-      return `• **${b.name}**
-🔴 ${spawnLine}
-⏳ Remaining: ${formatTime(diff)}
-${locationLine}`;
+      return {
+        text:
+          `• **${b.name}**\n` +
+          `🔴 Spawns in: ${spawnDate.toLocaleString()}\n` +
+          `⏳ Remaining: ${formatTime(diff)}\n` +
+          `${locationLine}`,
+        sortValue: diff
+      };
     }
 
-    return `• **${b.name}**
-🟢 Ready
-${locationLine}`;
+    return {
+      text: `• **${b.name}**\n🟢 Ready\n${locationLine}`,
+      sortValue: 0
+    };
   });
+
+  // ⚡ SORT: nearest spawn first
+  list.sort((a, b) => a.sortValue - b.sortValue);
+
+  const entries = list.map(x => x.text);
 
   const chunks = [];
   while (entries.length) {
@@ -136,13 +146,13 @@ ${locationLine}`;
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('⚔️ RAID BOSS DASHBOARD')
+    .setTitle('⚔️ RAID BOSS DASHBOARD (Nearest Spawn Priority)')
     .setColor(0xf1c40f)
     .setTimestamp();
 
   chunks.forEach((chunk, i) => {
     embed.addFields({
-      name: i === 0 ? '📊 Boss Status' : '\u200b',
+      name: i === 0 ? '📊 Priority List' : '\u200b',
       value: chunk
     });
   });
@@ -181,10 +191,8 @@ client.on('messageCreate', message => {
   if (cmd === '!setdead') {
     const mins = parseInt(args[2]);
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-
     kills[bossKey] = Date.now() - mins * 60000;
     saveData();
-
     return message.reply(`🕒 ${bosses[bossKey].name} set ${mins} min ago.`);
   }
 
@@ -195,7 +203,7 @@ client.on('messageCreate', message => {
           .setTitle('📋 Boss List')
           .setDescription(
             Object.values(bosses)
-              .map(b => `• ${b.name} (${b.hours ? b.hours + 'h' : 'Scheduled'})`)
+              .map(b => `• ${b.name} (${b.hours}h)`)
               .join('\n')
           )
       ]
