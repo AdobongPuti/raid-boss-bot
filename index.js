@@ -12,7 +12,7 @@ const client = new Client({
 const DATA_FILE = './bossdata.json';
 
 /* =========================
-   💾 LOAD / SAVE DATA
+   💾 DATA STORAGE
 ========================= */
 let kills = fs.existsSync(DATA_FILE)
   ? JSON.parse(fs.readFileSync(DATA_FILE))
@@ -33,22 +33,61 @@ function formatTime(ms) {
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE
+   ⚔️ FULL BOSS LIST
 ========================= */
 const bosses = {
+
+  /* 🔵 10H BOSSES */
   venatus: { name: "Venatus", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", hours: 10, location: "Ulan Canyon" },
 
+  /* 🟡 18H */
+  dalia: { name: "Lady Dalia", hours: 18, location: "Twilight Hill" },
+
+  /* 🔵 24H */
   livera: { name: "Livera", hours: 24, location: "Protector's Ruins" },
   araneo: { name: "Araneo", hours: 24, location: "TOT1" },
   undomiel: { name: "Undomiel", hours: 24, location: "Secret Lab" },
-
-  dalia: { name: "Lady Dalia", hours: 18, location: "Twilight Hill" },
   titore: { name: "Titore", hours: 24, location: "DM2" },
 
+  /* 🟠 29–32H */
+  aquleus: { name: "General Aquleus", hours: 29, location: "TOT2" },
+  amentis: { name: "Amentis", hours: 29, location: "LOG" },
+
   gareth: { name: "Gareth", hours: 32, location: "DM1" },
-  braudmore: { name: "Baron Braudmore", hours: 32, location: "BoT" }
+  braudmore: { name: "Baron Braudmore", hours: 32, location: "BoT" },
+  ringor: { name: "Ringor", hours: 32, location: "BoT" },
+
+  shuliar: { name: "Shuliar", hours: 35, location: "RoW" },
+  larba: { name: "Larba", hours: 35, location: "RoW" },
+
+  catena: { name: "Catena", hours: 35, location: "Deadman 3" },
+  auraq: { name: "Auraq", hours: 35, location: "Garbana 2" },
+  tumier: { name: "Tumier", hours: 37, location: "Garbana 3" },
+
+  /* 🔴 48H */
+  metus: { name: "Metus", hours: 48, location: "PoR" },
+  wannitas: { name: "Wannitas", hours: 48, location: "PoR" },
+  duplican: { name: "Duplican", hours: 48, location: "PoR" },
+
+  /* ⚫ 62H */
+  secreta: { name: "Secreta", hours: 62, location: "Silvergrass" },
+  ordo: { name: "Ordo", hours: 62, location: "Silvergrass" },
+  asta: { name: "Asta", hours: 62, location: "Silvergrass" },
+  supore: { name: "Supore", hours: 62, location: "Silvergrass" },
+
+  /* 📅 SCHEDULE BOSSES (NO TIMER LOGIC YET) */
+  clemantis: { name: "Clemantis", schedule: true, location: "Corrupted Basin" },
+  saphirus: { name: "Saphirus", schedule: true, location: "Crescent Lake" },
+  neutro: { name: "Neutro", schedule: true, location: "Desert of Screaming" },
+  thymele: { name: "Thymele", schedule: true, location: "Twilight Hill" },
+  milavy: { name: "Milavy", schedule: true, location: "TOT3" },
+  roderick: { name: "Roderick", schedule: true, location: "Garbana 1" },
+  benji: { name: "Benji", schedule: true, location: "Barbas" },
+  libitina: { name: "Libitina", schedule: true, location: "Unknown" },
+  rakajeth: { name: "Rakajeth", schedule: true, location: "Dracas" },
+  tumier_fixed: { name: "Tumier", schedule: true, location: "Garbana 3F" }
 };
 
 /* =========================
@@ -64,6 +103,11 @@ function buildDashboard() {
       name: '⏳ Boss Status',
       value: Object.entries(bosses)
         .map(([key, b]) => {
+
+          if (b.schedule) {
+            return `• **${b.name}** — 📅 Scheduled Boss\n📍 ${b.location}`;
+          }
+
           if (!kills[key]) {
             return `• **${b.name}** — 🟢 Alive\n📍 ${b.location}`;
           }
@@ -96,9 +140,11 @@ setInterval(() => {
   if (!channel) return;
 
   for (const key in bosses) {
+    const boss = bosses[key];
+
+    if (boss.schedule) continue;
     if (!kills[key]) continue;
 
-    const boss = bosses[key];
     const respawn = kills[key] + boss.hours * 3600000;
     const alertTime = respawn - 10 * 60000;
 
@@ -124,6 +170,7 @@ client.on('messageCreate', message => {
   /* ⚔️ !dead */
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
+    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss cannot use timer system.');
 
     kills[bossKey] = Date.now();
     saveData();
@@ -131,35 +178,38 @@ client.on('messageCreate', message => {
     return message.reply(`🟥 ${bosses[bossKey].name} marked as dead.`);
   }
 
-  /* 🟢 !alive (reset single boss) */
+  /* 🟢 !alive */
   if (cmd === '!alive') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
 
     delete kills[bossKey];
     saveData();
 
-    return message.reply(`🟢 ${bosses[bossKey].name} is now marked ALIVE.`);
+    return message.reply(`🟢 ${bosses[bossKey].name} is now ALIVE.`);
   }
 
-  /* 🕒 !setdead <boss> <minutes_ago> */
+  /* 🕒 !setdead */
   if (cmd === '!setdead') {
     const minutesAgo = parseInt(args[2]);
 
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (isNaN(minutesAgo)) return message.reply('❌ Usage: !setdead <boss> <minutes_ago>');
+    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss not supported.');
+
+    if (isNaN(minutesAgo))
+      return message.reply('❌ Usage: !setdead <boss> <minutes_ago>');
 
     kills[bossKey] = Date.now() - minutesAgo * 60000;
     saveData();
 
-    return message.reply(
-      `🕒 ${bosses[bossKey].name} set as dead ${minutesAgo} minute(s) ago.`
-    );
+    return message.reply(`🕒 ${bosses[bossKey].name} set ${minutesAgo} min ago.`);
   }
 
   /* ⏰ !next */
   if (cmd === '!next') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (!kills[bossKey]) return message.reply('⚠️ No record found.');
+    if (bosses[bossKey].schedule) return message.reply('📅 Scheduled boss.');
+
+    if (!kills[bossKey]) return message.reply('⚠️ No record.');
 
     const boss = bosses[bossKey];
     const respawn = new Date(kills[bossKey] + boss.hours * 3600000);
@@ -174,7 +224,7 @@ client.on('messageCreate', message => {
       .setColor(0x2ecc71)
       .setDescription(
         Object.values(bosses)
-          .map(b => `• ${b.name} (${b.hours}h)`)
+          .map(b => `• ${b.name} ${b.schedule ? '(Scheduled)' : `(${b.hours}h)`}`)
           .join('\n')
       );
 
