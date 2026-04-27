@@ -11,6 +11,7 @@ const client = new Client({
 
 const DATA_FILE = './bossdata.json';
 const ALERT_CHANNEL_ID = 'PUT_CHANNEL_ID_HERE';
+const TIMEZONE = 'Asia/Manila';
 
 /* =========================
    💾 STORAGE
@@ -38,9 +39,9 @@ function formatTime(ms) {
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
 }
 
-function formatDate(timestamp) {
-  return new Date(timestamp).toLocaleString('en-PH', {
-    timeZone: 'Asia/Manila',
+function formatDate(ts) {
+  return new Date(ts).toLocaleString('en-PH', {
+    timeZone: TIMEZONE,
     month: 'short',
     day: '2-digit',
     year: 'numeric',
@@ -57,7 +58,6 @@ function getNextScheduleTimestamp(day, time) {
   target.setHours(hh, mm, 0, 0);
 
   let diff = day - target.getDay();
-
   if (diff < 0 || (diff === 0 && target < now)) diff += 7;
 
   target.setDate(target.getDate() + diff);
@@ -65,10 +65,11 @@ function getNextScheduleTimestamp(day, time) {
 }
 
 /* =========================
-   ⚔️ BOSSES (COMPLETE LIST)
+   ⚔️ FULL BOSSES DATABASE
 ========================= */
 const bosses = {
 
+  /* ===== INTERVAL BOSSES ===== */
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 21, location: "Ulan Canyon" },
@@ -98,6 +99,7 @@ const bosses = {
   asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
   supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
 
+  /* ===== SCHEDULE BOSSES ===== */
   clemantis: {
     name: "Clemantis",
     type: "schedule",
@@ -140,12 +142,12 @@ const bosses = {
 
   milavy: { name: "Milavy", type: "schedule", location: "TOT3", schedule: [{ day: 6, time: "15:00" }] },
   ringor: { name: "Ringor", type: "schedule", location: "BoT", schedule: [{ day: 6, time: "17:00" }] },
-  roderick: { name: "Roderick", type: "schedule", location: "Garbana 1F", schedule: [{ day: 5, time: "19:00" }] },
+  roderick: { name: "Roderick", type: "schedule", location: "Unknown", schedule: [{ day: 5, time: "19:00" }] },
 
   auraq: {
     name: "Auraq",
     type: "schedule",
-    location: "Garbana 2F",
+    location: "RoW",
     schedule: [
       { day: 3, time: "21:00" },
       { day: 5, time: "22:00" }
@@ -157,7 +159,7 @@ const bosses = {
   libitina: {
     name: "Libitina",
     type: "schedule",
-    location: "Dracas",
+    location: "Unknown",
     schedule: [
       { day: 1, time: "21:00" },
       { day: 6, time: "21:00" }
@@ -281,23 +283,53 @@ function buildDashboard() {
 }
 
 /* =========================
-   🚀 COMMANDS
+   🚀 COMMANDS (WITH SETDEAD)
 ========================= */
 client.on('messageCreate', message => {
   if (message.author.bot) return;
 
-  const args = message.content.toLowerCase().split(' ');
-  const cmd = args[0];
-  const bossKey = aliases[args[1]] || args[1];
+  const args = message.content.trim().split(/\s+/);
+  const cmd = args[0].toLowerCase();
+  let bossKey = aliases[args[1]] || args[1];
+
+  if (cmd === '!setdead') {
+    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
+
+    const input = args[2];
+    if (!input) return message.reply('❌ Usage: !setdead <boss> <minutes | HH:MM>');
+
+    let killTime;
+
+    if (!isNaN(input)) {
+      killTime = Date.now() - input * 60000;
+    } else if (input.includes(':')) {
+      const [hh, mm] = input.split(':').map(Number);
+
+      const now = new Date();
+      const target = new Date();
+      target.setHours(hh, mm, 0, 0);
+
+      if (target > now) target.setDate(target.getDate() - 1);
+
+      killTime = target.getTime();
+    } else {
+      return message.reply('❌ Invalid format.');
+    }
+
+    kills[bossKey] = killTime;
+    saveData();
+
+    return message.reply(
+      `🟡 **${bosses[bossKey].name} updated**\n` +
+      `📅 Kill: ${formatDate(killTime)}`
+    );
+  }
 
   if (cmd === '!dashboard')
     return message.reply({ embeds: [buildDashboard()] });
 
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
-    if (bosses[bossKey].type === "schedule")
-      return message.reply('⚠️ Scheduled boss cannot use !dead');
-
     kills[bossKey] = Date.now();
     saveData();
     return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
@@ -317,6 +349,9 @@ client.on('messageCreate', message => {
   }
 });
 
+/* =========================
+   🔐 START
+========================= */
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
   setInterval(checkAlerts, 60000);
