@@ -145,12 +145,12 @@ const bosses = {
 
   milavy: { name: "Milavy", type: "schedule", location: "TOT3", schedule: [{ day: 6, time: "15:00" }] },
   ringor: { name: "Ringor", type: "schedule", location: "BoT", schedule: [{ day: 6, time: "17:00" }] },
-  roderick: { name: "Roderick", type: "schedule", location: "Unknown", schedule: [{ day: 5, time: "19:00" }] },
+  roderick: { name: "Roderick", type: "schedule", location: "Garbana 1F", schedule: [{ day: 5, time: "19:00" }] },
 
   auraq: {
     name: "Auraq",
     type: "schedule",
-    location: "RoW",
+    location: "Garbana 2F",
     schedule: [
       { day: 3, time: "21:00" },
       { day: 5, time: "22:00" }
@@ -162,7 +162,7 @@ const bosses = {
   libitina: {
     name: "Libitina",
     type: "schedule",
-    location: "Unknown",
+    location: "Dracas",
     schedule: [
       { day: 1, time: "21:00" },
       { day: 6, time: "21:00" }
