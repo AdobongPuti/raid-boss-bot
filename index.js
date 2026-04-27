@@ -73,7 +73,6 @@ function getNextScheduleTimestamp(day, time) {
 ========================= */
 const bosses = {
 
-  /* INTERVAL BOSSES */
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 21, location: "Ulan Canyon" },
@@ -103,7 +102,6 @@ const bosses = {
   asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
   supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
 
-  /* SCHEDULE BOSSES */
   clemantis: {
     name: "Clemantis",
     type: "schedule",
@@ -199,6 +197,8 @@ function checkAlerts() {
   for (const [key, b] of Object.entries(bosses)) {
     let nextSpawn;
 
+    const location = b.location ?? "Unknown"; // ✅ FIX APPLIED HERE
+
     if (b.type === "interval") {
       if (!kills[key]) continue;
       nextSpawn = kills[key] + b.hours * 3600000;
@@ -214,7 +214,7 @@ function checkAlerts() {
 
       alerted[alertKey] = true;
 
-      channel.send(`@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${b.location}`);
+      channel.send(`@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${location}`);
     }
 
     if (diff < -60000) {
@@ -224,7 +224,7 @@ function checkAlerts() {
 }
 
 /* =========================
-   DASHBOARD (2 COLUMNS TOP 10)
+   DASHBOARD (FIXED LOCATION)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
@@ -234,11 +234,17 @@ function buildDashboard() {
 
   for (const [key, b] of Object.entries(bosses)) {
 
+    const location = b.location ?? "Unknown"; // ✅ FIX APPLIED HERE
+
     let nextSpawn;
 
     if (b.type === "interval") {
       if (!kills[key]) {
-        interval.push({ name: b.name, text: "🟢 Alive", sort: 0 });
+        interval.push({
+          name: b.name,
+          text: `🟢 Alive\n📍 ${location}`,
+          sort: 0
+        });
         continue;
       }
 
@@ -246,7 +252,10 @@ function buildDashboard() {
 
       interval.push({
         name: b.name,
-        text: `⏳ ${formatTime(nextSpawn - now)}\n📅 ${formatDate(nextSpawn)}\n📍 ${b.location}`,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${formatDate(nextSpawn)}\n` +
+          `📍 ${location}`,
         sort: nextSpawn - now
       });
 
@@ -255,7 +264,10 @@ function buildDashboard() {
 
       schedule.push({
         name: b.name,
-        text: `⏳ ${formatTime(nextSpawn - now)}\n📅 ${formatDate(nextSpawn)}\n📍 ${b.location}`,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${formatDate(nextSpawn)}\n` +
+          `📍 ${location}`,
         sort: nextSpawn - now
       });
     }
