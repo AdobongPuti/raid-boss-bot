@@ -26,7 +26,7 @@ function saveData() {
 }
 
 /* =========================
-   ⏳ TIME FORMAT
+   ⏳ TIME HELPERS
 ========================= */
 function formatTime(ms) {
   if (ms <= 0) return "Spawned / Alive";
@@ -36,6 +36,17 @@ function formatTime(ms) {
   const r = m % 60;
 
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
+}
+
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 /* =========================
@@ -59,7 +70,7 @@ function getNextScheduleTimestamp(day, time) {
 }
 
 /* =========================
-   ⚔️ BOSSES LIST (UNCHANGED FULL)
+   ⚔️ BOSSES DATABASE
 ========================= */
 const bosses = {
 
@@ -214,7 +225,7 @@ function checkAlerts() {
 }
 
 /* =========================
-   📊 DASHBOARD
+   📊 DASHBOARD (WITH DATE + TIME)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
@@ -227,7 +238,11 @@ function buildDashboard() {
 
     if (b.type === "interval") {
       if (!kills[key]) {
-        intervalList.push({ name: b.name, text: `🟢 Alive\n📍 ${b.location}`, sort: -1 });
+        intervalList.push({
+          name: b.name,
+          text: `🟢 Alive\n📍 ${b.location}`,
+          sort: -1
+        });
         return;
       }
 
@@ -235,7 +250,10 @@ function buildDashboard() {
 
       intervalList.push({
         name: b.name,
-        text: `⏳ ${formatTime(nextSpawn - now)}\n📍 ${b.location}`,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${formatDate(nextSpawn)}\n` +
+          `📍 ${b.location}`,
         sort: nextSpawn - now
       });
 
@@ -244,7 +262,10 @@ function buildDashboard() {
 
       scheduleList.push({
         name: b.name,
-        text: `⏳ ${formatTime(nextSpawn - now)}\n📍 ${b.location}`,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${formatDate(nextSpawn)}\n` +
+          `📍 ${b.location}`,
         sort: nextSpawn - now
       });
     }
@@ -260,8 +281,8 @@ function buildDashboard() {
     .setTitle("⚔️ RAID DASHBOARD")
     .setColor(0xf1c40f)
     .addFields(
-      { name: "⏱️ Interval Bosses", value: format(intervalList), inline: true },
-      { name: "📅 Scheduled Bosses", value: format(scheduleList), inline: true }
+      { name: "⏱️ Interval Bosses (Top 10)", value: format(intervalList), inline: true },
+      { name: "📅 Scheduled Bosses (Top 10)", value: format(scheduleList), inline: true }
     )
     .setTimestamp();
 }
@@ -296,18 +317,16 @@ client.on('messageCreate', message => {
     return message.reply(`🟢 ${bosses[bossKey].name} is alive.`);
   }
 
-  /* ✅ RESET (OPTION A IMPLEMENTED) */
   if (cmd === '!reset') {
     kills = {};
     alerted = {};
     saveData();
     return message.reply('🧹 All interval boss data has been reset.');
   }
-
 });
 
 /* =========================
-   START BOT
+   🔐 START BOT
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
