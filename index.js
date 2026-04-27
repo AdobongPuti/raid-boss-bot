@@ -49,7 +49,7 @@ function formatDate(timestamp) {
 }
 
 /* =========================
-   SCHEDULE HELPER
+   SCHEDULE CALC
 ========================= */
 function getNextScheduleTimestamp(day, time) {
   const now = new Date();
@@ -69,10 +69,11 @@ function getNextScheduleTimestamp(day, time) {
 }
 
 /* =========================
-   BOSSES (FULL LIST RESTORED)
+   BOSSES (FULL LIST)
 ========================= */
 const bosses = {
 
+  /* INTERVAL BOSSES */
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 21, location: "Ulan Canyon" },
@@ -102,6 +103,7 @@ const bosses = {
   asta: { name: "Asta", type: "interval", hours: 62, location: "Silvergrass" },
   supore: { name: "Supore", type: "interval", hours: 62, location: "Silvergrass" },
 
+  /* SCHEDULE BOSSES */
   clemantis: {
     name: "Clemantis",
     type: "schedule",
@@ -178,7 +180,12 @@ const bosses = {
     ]
   },
 
-  tumier: { name: "Tumier", type: "schedule", location: "Garbana 3F", schedule: [{ day: 0, time: "19:00" }] }
+  tumier: {
+    name: "Tumier",
+    type: "schedule",
+    location: "Garbana 3F",
+    schedule: [{ day: 0, time: "19:00" }]
+  }
 };
 
 /* =========================
@@ -217,7 +224,7 @@ function checkAlerts() {
 }
 
 /* =========================
-   DASHBOARD (FIXED)
+   DASHBOARD (2 COLUMNS TOP 10)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
@@ -262,13 +269,13 @@ function buildDashboard() {
     .setColor(0xf1c40f)
     .addFields(
       {
-        name: "⏱ Interval Bosses",
-        value: interval.slice(0, 10).map(b => `**${b.name}**\n${b.text}`).join("\n\n"),
+        name: "⏱ Interval Bosses (Top 10)",
+        value: interval.slice(0, 10).map(b => `**${b.name}**\n${b.text}`).join("\n\n") || "No data",
         inline: true
       },
       {
-        name: "📅 Scheduled Bosses",
-        value: schedule.slice(0, 10).map(b => `**${b.name}**\n${b.text}`).join("\n\n"),
+        name: "📅 Scheduled Bosses (Top 10)",
+        value: schedule.slice(0, 10).map(b => `**${b.name}**\n${b.text}`).join("\n\n") || "No data",
         inline: true
       }
     )
@@ -281,8 +288,8 @@ function buildDashboard() {
 client.on('messageCreate', message => {
   if (message.author.bot) return;
 
-  const args = message.content.toLowerCase().split(' ');
-  const cmd = args[0];
+  const args = message.content.trim().split(/\s+/);
+  const cmd = args[0].toLowerCase();
   const bossKey = args[1];
 
   if (cmd === '!dashboard') {
@@ -290,21 +297,49 @@ client.on('messageCreate', message => {
   }
 
   if (cmd === '!dead') {
-    if (!bosses[bossKey]) return message.reply('Boss not found');
+    if (!bosses[bossKey]) return message.reply("Boss not found");
     kills[bossKey] = Date.now();
     saveData();
-    return message.reply(`${bosses[bossKey].name} marked dead.`);
+
+    message.channel.send(`⚰️ **${bosses[bossKey].name} marked dead**`);
+    return message.reply("Confirmed.");
   }
 
   if (cmd === '!alive') {
     delete kills[bossKey];
     saveData();
-    return message.reply(`${bosses[bossKey].name} is alive.`);
+    return message.reply(`${bosses[bossKey].name} is now alive.`);
+  }
+
+  if (cmd === '!setdead') {
+    if (!bosses[bossKey]) return message.reply("Boss not found");
+
+    const input = args[2];
+    if (!input) return message.reply("Usage: !setdead <boss> <minutes | HH:MM>");
+
+    let killTime;
+
+    if (!isNaN(input)) {
+      killTime = Date.now() - (parseInt(input) * 60000);
+    } else if (input.includes(":")) {
+      const [h, m] = input.split(":").map(Number);
+      const t = new Date();
+      t.setHours(h, m, 0, 0);
+      killTime = t.getTime();
+    } else {
+      return message.reply("Invalid format");
+    }
+
+    kills[bossKey] = killTime;
+    saveData();
+
+    message.channel.send(`⚠️ **${bosses[bossKey].name} updated via !setdead**`);
+    return message.reply(`Set to ${formatDate(killTime)}`);
   }
 });
 
 /* =========================
-   START BOT (FIXED)
+   START BOT
 ========================= */
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
