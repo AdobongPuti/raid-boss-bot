@@ -10,6 +10,7 @@ const client = new Client({
 });
 
 const DATA_FILE = './bossdata.json';
+const ALERT_CHANNEL_ID = 'PUT_CHANNEL_ID_HERE';
 
 /* =========================
    💾 STORAGE
@@ -28,9 +29,12 @@ function saveData() {
    ⏳ TIME FORMAT
 ========================= */
 function formatTime(ms) {
+  if (ms <= 0) return "Spawned / Alive";
+
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
   const r = m % 60;
+
   return h > 0 ? `${h}h ${r}m` : `${r}m`;
 }
 
@@ -51,12 +55,11 @@ function getNextScheduleTimestamp(day, time) {
   }
 
   target.setDate(target.getDate() + diff);
-
   return target.getTime();
 }
 
 /* =========================
-   ⚔️ BOSSES DATABASE (FULL UPDATED LIST)
+   ⚔️ FULL BOSSES LIST
 ========================= */
 const bosses = {
 
@@ -64,7 +67,6 @@ const bosses = {
   venatus: { name: "Venatus", type: "interval", hours: 10, location: "Corrupted Basin" },
   viorent: { name: "Viorent", type: "interval", hours: 10, location: "Crescent Lake" },
   ego: { name: "Ego", type: "interval", hours: 21, location: "Ulan Canyon" },
-
   lady_dalia: { name: "Lady Dalia", type: "interval", hours: 18, location: "Twilight Hill" },
 
   livera: { name: "Livera", type: "interval", hours: 24, location: "Protector's Ruins" },
@@ -73,7 +75,6 @@ const bosses = {
 
   gareth: { name: "Gareth", type: "interval", hours: 32, location: "DM1" },
   braudmore: { name: "Baron Braudmore", type: "interval", hours: 32, location: "BoT" },
-
   titore: { name: "Titore", type: "interval", hours: 37, location: "DM2" },
 
   aquleus: { name: "General Aquleus", type: "interval", hours: 29, location: "ToT2" },
@@ -98,8 +99,8 @@ const bosses = {
     type: "schedule",
     location: "Corrupted Basin",
     schedule: [
-      { day: 1, time: "11:30" }, // Monday
-      { day: 4, time: "19:00" }  // Thursday
+      { day: 1, time: "11:30" },
+      { day: 4, time: "19:00" }
     ]
   },
 
@@ -133,26 +134,9 @@ const bosses = {
     ]
   },
 
-  milavy: {
-    name: "Milavy",
-    type: "schedule",
-    location: "TOT3",
-    schedule: [{ day: 6, time: "15:00" }]
-  },
-
-  ringor: {
-    name: "Ringor",
-    type: "schedule",
-    location: "BoT",
-    schedule: [{ day: 6, time: "17:00" }]
-  },
-
-  roderick: {
-    name: "Roderick",
-    type: "schedule",
-    location: "Unknown",
-    schedule: [{ day: 5, time: "19:00" }]
-  },
+  milavy: { name: "Milavy", type: "schedule", location: "TOT3", schedule: [{ day: 6, time: "15:00" }] },
+  ringor: { name: "Ringor", type: "schedule", location: "BoT", schedule: [{ day: 6, time: "17:00" }] },
+  roderick: { name: "Roderick", type: "schedule", location: "Unknown", schedule: [{ day: 5, time: "19:00" }] },
 
   auraq: {
     name: "Auraq",
@@ -164,12 +148,7 @@ const bosses = {
     ]
   },
 
-  benji: {
-    name: "Benji",
-    type: "schedule",
-    location: "Barbas",
-    schedule: [{ day: 0, time: "21:00" }]
-  },
+  benji: { name: "Benji", type: "schedule", location: "Barbas", schedule: [{ day: 0, time: "21:00" }] },
 
   libitina: {
     name: "Libitina",
@@ -191,13 +170,15 @@ const bosses = {
     ]
   },
 
-  tumier: {
-    name: "Tumier",
-    type: "schedule",
-    location: "Garbana 3F",
-    schedule: [{ day: 0, time: "19:00" }]
-  }
+  tumier: { name: "Tumier", type: "schedule", location: "Garbana 3F", schedule: [{ day: 0, time: "19:00" }] }
+};
 
+/* =========================
+   🔁 ALIASES
+========================= */
+const aliases = {
+  dalia: "lady_dalia",
+  braud: "braudmore"
 };
 
 /* =========================
@@ -205,13 +186,14 @@ const bosses = {
 ========================= */
 function checkAlerts() {
   const now = Date.now();
+  const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
+  if (!channel) return;
 
   Object.entries(bosses).forEach(([key, b]) => {
-    if (!kills[key]) return;
-
     let nextSpawn;
 
     if (b.type === "interval") {
+      if (!kills[key]) return;
       nextSpawn = kills[key] + b.hours * 3600000;
     } else {
       nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
@@ -219,21 +201,12 @@ function checkAlerts() {
 
     const diff = nextSpawn - now;
 
-    if (diff <= 10 * 60000 && diff > 9 * 60000) {
+    if (diff <= 10 * 60000 && diff > 0) {
       const alertKey = `${key}_${nextSpawn}`;
       if (alerted[alertKey]) return;
 
       alerted[alertKey] = true;
-
-      const channel = client.channels.cache
-        .filter(c => c.isTextBased())
-        .first();
-
-      if (channel) {
-        channel.send(
-          `@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${b.location}`
-        );
-      }
+      channel.send(`@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${b.location}`);
     }
 
     if (diff < -60000) {
@@ -243,51 +216,73 @@ function checkAlerts() {
 }
 
 /* =========================
-   📊 DASHBOARD (TOP 25)
+   📊 DASHBOARD (TOP 10 PER COLUMN)
 ========================= */
 function buildDashboard() {
   const now = Date.now();
 
-  const list = Object.entries(bosses).map(([key, b]) => {
+  const intervalList = [];
+  const scheduleList = [];
 
-    const loc = `📍 Location: ${b.location}`;
-
-    if (!kills[key]) {
-      return {
-        text: `• **${b.name}**\n🟢 Alive\n${loc}`,
-        sort: Infinity
-      };
-    }
-
+  Object.entries(bosses).forEach(([key, b]) => {
     let nextSpawn;
 
     if (b.type === "interval") {
+      if (!kills[key]) {
+        intervalList.push({
+          name: b.name,
+          text: `🟢 Alive\n📍 ${b.location}`,
+          sort: -1
+        });
+        return;
+      }
+
       nextSpawn = kills[key] + b.hours * 3600000;
+
+      intervalList.push({
+        name: b.name,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${new Date(nextSpawn).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}\n` +
+          `📍 ${b.location}`,
+        sort: nextSpawn - now
+      });
+
     } else {
       nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+
+      scheduleList.push({
+        name: b.name,
+        text:
+          `⏳ ${formatTime(nextSpawn - now)}\n` +
+          `📅 ${new Date(nextSpawn).toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}\n` +
+          `📍 ${b.location}`,
+        sort: nextSpawn - now
+      });
     }
-
-    const diff = nextSpawn - now;
-    const spawnDate = new Date(nextSpawn);
-
-    return {
-      text:
-        `• **${b.name}**\n` +
-        `⏳ In: ${formatTime(diff)}\n` +
-        `📅 Spawns at: ${spawnDate.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })}\n` +
-        `${loc}`,
-      sort: diff
-    };
   });
 
-  list.sort((a, b) => a.sort - b.sort);
+  intervalList.sort((a, b) => a.sort - b.sort);
+  scheduleList.sort((a, b) => a.sort - b.sort);
 
-  const top25 = list.slice(0, 25);
+  const formatColumn = (arr) =>
+    arr.slice(0, 10).map(x => `**${x.name}**\n${x.text}`).join("\n\n") || "No data";
 
   return new EmbedBuilder()
-    .setTitle("⚔️ RAID DASHBOARD (TOP 25 NEAREST SPAWNS)")
+    .setTitle("⚔️ RAID DASHBOARD")
     .setColor(0xf1c40f)
-    .setDescription(top25.map(x => x.text).join("\n\n"))
+    .addFields(
+      {
+        name: "⏱️ Interval Bosses (Top 10)",
+        value: formatColumn(intervalList),
+        inline: true
+      },
+      {
+        name: "📅 Scheduled Bosses (Top 10)",
+        value: formatColumn(scheduleList),
+        inline: true
+      }
+    )
     .setTimestamp();
 }
 
@@ -299,14 +294,21 @@ client.on('messageCreate', message => {
 
   const args = message.content.toLowerCase().split(' ');
   const cmd = args[0];
-  const bossKey = args[1];
 
-  if (cmd === '!dashboard') {
+  let bossKey = args[1];
+  if (aliases[bossKey]) bossKey = aliases[bossKey];
+
+  if (cmd === '!dashboard')
     return message.reply({ embeds: [buildDashboard()] });
-  }
+
+  if (cmd === '!list')
+    return message.reply(Object.entries(bosses).map(([k, b]) => `• ${k} → ${b.name}`).join('\n'));
 
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
+    if (bosses[bossKey].type === "schedule")
+      return message.reply('⚠️ Scheduled boss cannot use !dead');
+
     kills[bossKey] = Date.now();
     saveData();
     return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
@@ -320,25 +322,51 @@ client.on('messageCreate', message => {
   }
 
   if (cmd === '!setdead') {
-    const mins = parseInt(args[2]);
+    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
+    if (bosses[bossKey].type === "schedule")
+      return message.reply('⚠️ Scheduled boss cannot use !setdead');
 
-    if (!bosses[bossKey]) {
-      return message.reply('❌ Boss not found.');
+    const input = args[2];
+    if (!input) return message.reply('Usage: !setdead <boss> <minutes | HH:MM>');
+
+    if (input.includes(':')) {
+      const [hh, mm] = input.split(':').map(Number);
+      const now = new Date();
+      const killTime = new Date(now);
+
+      killTime.setHours(hh, mm, 0, 0);
+      if (killTime > now) killTime.setDate(killTime.getDate() - 1);
+
+      kills[bossKey] = killTime.getTime();
+    } else {
+      const mins = parseInt(input);
+      if (isNaN(mins)) return message.reply('Invalid number.');
+      kills[bossKey] = Date.now() - mins * 60000;
     }
 
-    if (isNaN(mins)) {
-      return message.reply('❌ Usage: !setdead <boss> <minutes>');
-    }
-
-    kills[bossKey] = Date.now() - mins * 60000;
     saveData();
+    return message.reply(`🕒 ${bosses[bossKey].name} updated.`);
+  }
 
-    return message.reply(`🕒 ${bosses[bossKey].name} set as killed ${mins} min ago.`);
+  if (cmd === '!next') {
+    if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
+
+    const b = bosses[bossKey];
+    let nextSpawn;
+
+    if (b.type === "interval") {
+      if (!kills[bossKey]) return message.reply('🟢 Boss is alive.');
+      nextSpawn = kills[bossKey] + b.hours * 3600000;
+    } else {
+      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+    }
+
+    return message.reply(`⏳ **${b.name}** → ${formatTime(nextSpawn - Date.now())}`);
   }
 });
 
 /* =========================
-   🔐 START BOT
+   🔐 START
 ========================= */
 client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
