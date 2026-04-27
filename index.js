@@ -11,7 +11,6 @@ const client = new Client({
 
 const DATA_FILE = './bossdata.json';
 const ALERT_CHANNEL_ID = 'PUT_CHANNEL_ID_HERE';
-const TIMEZONE = 'Asia/Manila';
 
 /* =========================
    💾 STORAGE
@@ -27,7 +26,7 @@ function saveData() {
 }
 
 /* =========================
-   ⏳ HELPERS
+   ⏳ HELPERS (NO TIMEZONE LOCK)
 ========================= */
 function formatTime(ms) {
   if (ms <= 0) return "Spawned / Alive";
@@ -40,16 +39,12 @@ function formatTime(ms) {
 }
 
 function formatDate(ts) {
-  return new Date(ts).toLocaleString('en-PH', {
-    timeZone: TIMEZONE,
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  return new Date(ts).toLocaleString();
 }
 
+/* =========================
+   📅 SCHEDULE HELPER
+========================= */
 function getNextScheduleTimestamp(day, time) {
   const now = new Date();
   const [hh, mm] = time.split(':').map(Number);
@@ -58,14 +53,17 @@ function getNextScheduleTimestamp(day, time) {
   target.setHours(hh, mm, 0, 0);
 
   let diff = day - target.getDay();
-  if (diff < 0 || (diff === 0 && target < now)) diff += 7;
+
+  if (diff < 0 || (diff === 0 && target < now)) {
+    diff += 7;
+  }
 
   target.setDate(target.getDate() + diff);
   return target.getTime();
 }
 
 /* =========================
-   ⚔️ FULL BOSSES DATABASE
+   ⚔️ COMPLETE BOSSES DATABASE
 ========================= */
 const bosses = {
 
@@ -189,109 +187,18 @@ const aliases = {
 };
 
 /* =========================
-   🔔 ALERT SYSTEM
-========================= */
-function checkAlerts() {
-  const now = Date.now();
-  const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
-  if (!channel) return;
-
-  Object.entries(bosses).forEach(([key, b]) => {
-    let nextSpawn;
-
-    if (b.type === "interval") {
-      if (!kills[key]) return;
-      nextSpawn = kills[key] + b.hours * 3600000;
-    } else {
-      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
-    }
-
-    const diff = nextSpawn - now;
-
-    if (diff <= 10 * 60000 && diff > 0) {
-      const alertKey = `${key}_${nextSpawn}`;
-      if (alerted[alertKey]) return;
-
-      alerted[alertKey] = true;
-      channel.send(`@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${b.location}`);
-    }
-
-    if (diff < -60000) delete alerted[`${key}_${nextSpawn}`];
-  });
-}
-
-/* =========================
-   📊 DASHBOARD
-========================= */
-function buildDashboard() {
-  const now = Date.now();
-  const intervalList = [];
-  const scheduleList = [];
-
-  Object.entries(bosses).forEach(([key, b]) => {
-    let nextSpawn;
-
-    if (b.type === "interval") {
-      if (!kills[key]) {
-        intervalList.push({
-          name: b.name,
-          text: `🟢 Alive\n📍 ${b.location}`,
-          sort: -1
-        });
-        return;
-      }
-
-      nextSpawn = kills[key] + b.hours * 3600000;
-
-      intervalList.push({
-        name: b.name,
-        text:
-          `⏳ ${formatTime(nextSpawn - now)}\n` +
-          `📅 ${formatDate(nextSpawn)}\n` +
-          `📍 ${b.location}`,
-        sort: nextSpawn - now
-      });
-
-    } else {
-      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
-
-      scheduleList.push({
-        name: b.name,
-        text:
-          `⏳ ${formatTime(nextSpawn - now)}\n` +
-          `📅 ${formatDate(nextSpawn)}\n` +
-          `📍 ${b.location}`,
-        sort: nextSpawn - now
-      });
-    }
-  });
-
-  intervalList.sort((a, b) => a.sort - b.sort);
-  scheduleList.sort((a, b) => a.sort - b.sort);
-
-  const format = (arr) =>
-    arr.slice(0, 10).map(x => `**${x.name}**\n${x.text}`).join("\n\n");
-
-  return new EmbedBuilder()
-    .setTitle("⚔️ RAID DASHBOARD")
-    .setColor(0xf1c40f)
-    .addFields(
-      { name: "⏱️ Interval Bosses", value: format(intervalList) || "No data", inline: true },
-      { name: "📅 Scheduled Bosses", value: format(scheduleList) || "No data", inline: true }
-    )
-    .setTimestamp();
-}
-
-/* =========================
-   🚀 COMMANDS (WITH SETDEAD)
+   🚀 COMMANDS
 ========================= */
 client.on('messageCreate', message => {
   if (message.author.bot) return;
 
   const args = message.content.trim().split(/\s+/);
   const cmd = args[0].toLowerCase();
-  let bossKey = aliases[args[1]] || args[1];
+  const bossKey = aliases[args[1]?.toLowerCase()] || args[1]?.toLowerCase();
 
+  /* =========================
+     🕒 SETDEAD (MIN + HH:MM)
+  ========================= */
   if (cmd === '!setdead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
 
@@ -300,33 +207,33 @@ client.on('messageCreate', message => {
 
     let killTime;
 
+    // minutes
     if (!isNaN(input)) {
       killTime = Date.now() - input * 60000;
-    } else if (input.includes(':')) {
-      const [hh, mm] = input.split(':').map(Number);
+    }
 
+    // HH:MM
+    else if (input.includes(':')) {
+      const [hh, mm] = input.split(':').map(Number);
       const now = new Date();
-      const target = new Date();
+      const target = new Date(now);
+
       target.setHours(hh, mm, 0, 0);
 
       if (target > now) target.setDate(target.getDate() - 1);
 
       killTime = target.getTime();
-    } else {
-      return message.reply('❌ Invalid format.');
     }
+
+    else return message.reply('❌ Invalid format.');
 
     kills[bossKey] = killTime;
     saveData();
 
     return message.reply(
-      `🟡 **${bosses[bossKey].name} updated**\n` +
-      `📅 Kill: ${formatDate(killTime)}`
+      `🕒 **${bosses[bossKey].name} updated**\n📅 ${formatDate(killTime)}`
     );
   }
-
-  if (cmd === '!dashboard')
-    return message.reply({ embeds: [buildDashboard()] });
 
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
@@ -350,7 +257,7 @@ client.on('messageCreate', message => {
 });
 
 /* =========================
-   🔐 START
+   🔐 START BOT
 ========================= */
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
