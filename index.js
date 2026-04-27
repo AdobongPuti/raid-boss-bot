@@ -105,16 +105,92 @@ const bosses = {
 };
 
 /* =========================
-   🔁 ALIASES (fix typo help)
+   🔁 ALIASES
 ========================= */
 const aliases = {
   dalia: "lady_dalia",
   braud: "braudmore",
-  venauts: "venatus" // 👈 fixes your typo issue
+  venauts: "venatus"
 };
 
 /* =========================
-   🚀 SAFE COMMAND PARSING
+   📊 DASHBOARD
+========================= */
+function buildDashboard() {
+  const now = Date.now();
+
+  const list = Object.entries(bosses).map(([key, b]) => {
+    let nextSpawn;
+
+    if (b.type === "interval") {
+      if (!kills[key]) {
+        return {
+          text: `**${b.name}**\n🟢 Alive\n📍 ${b.location}`,
+          sort: Infinity
+        };
+      }
+
+      nextSpawn = kills[key] + b.hours * 3600000;
+
+    } else {
+      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+    }
+
+    return {
+      text:
+        `**${b.name}**\n` +
+        `⏳ ${formatTime(nextSpawn - now)}\n` +
+        `📅 ${formatDate(nextSpawn)}\n` +
+        `📍 ${b.location}`,
+      sort: nextSpawn - now
+    };
+  });
+
+  list.sort((a, b) => a.sort - b.sort);
+
+  return new EmbedBuilder()
+    .setTitle("⚔️ RAID DASHBOARD")
+    .setColor(0xf1c40f)
+    .setDescription(list.slice(0, 20).map(x => x.text).join("\n\n"))
+    .setTimestamp();
+}
+
+/* =========================
+   🔔 ALERT SYSTEM
+========================= */
+function checkAlerts() {
+  const now = Date.now();
+  const channel = client.channels.cache.get(ALERT_CHANNEL_ID);
+  if (!channel) return;
+
+  Object.entries(bosses).forEach(([key, b]) => {
+    let nextSpawn;
+
+    if (b.type === "interval") {
+      if (!kills[key]) return;
+      nextSpawn = kills[key] + b.hours * 3600000;
+    } else {
+      nextSpawn = Math.min(...b.schedule.map(s => getNextScheduleTimestamp(s.day, s.time)));
+    }
+
+    const diff = nextSpawn - now;
+
+    if (diff <= 10 * 60000 && diff > 0) {
+      const alertKey = `${key}_${nextSpawn}`;
+      if (alerted[alertKey]) return;
+
+      alerted[alertKey] = true;
+      channel.send(`@here 🔔 **${b.name}** spawns in 10 minutes!\n📍 ${b.location}`);
+    }
+
+    if (diff < -60000) {
+      delete alerted[`${key}_${nextSpawn}`];
+    }
+  });
+}
+
+/* =========================
+   🚀 COMMANDS
 ========================= */
 client.on('messageCreate', message => {
   if (message.author.bot) return;
@@ -123,9 +199,17 @@ client.on('messageCreate', message => {
   const cmd = args[0].toLowerCase();
   let bossKey = aliases[args[1]] || args[1];
 
-  /* =========================
-     ⚔️ !SETDEAD FIXED
-  ========================= */
+  /* ===== !dashboard ===== */
+  if (cmd === '!dashboard') {
+    try {
+      return message.reply({ embeds: [buildDashboard()] });
+    } catch (err) {
+      console.error(err);
+      return message.reply('❌ Dashboard error.');
+    }
+  }
+
+  /* ===== !setdead ===== */
   if (cmd === '!setdead') {
     if (!bossKey) return message.reply('❌ Usage: !setdead <boss> <minutes | HH:MM>');
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
@@ -135,42 +219,29 @@ client.on('messageCreate', message => {
 
     let killTime;
 
-    // CASE 1: MINUTES AGO
     if (!isNaN(input)) {
-      killTime = Date.now() - parseInt(input) * 60000;
-    }
-
-    // CASE 2: HH:MM
-    else if (input.includes(':')) {
+      killTime = Date.now() - input * 60000;
+    } else if (input.includes(':')) {
       const [hh, mm] = input.split(':').map(Number);
-
       const now = new Date();
       const target = new Date(now);
 
       target.setHours(hh, mm, 0, 0);
 
-      if (target > now) {
-        target.setDate(target.getDate() - 1);
-      }
+      if (target > now) target.setDate(target.getDate() - 1);
 
       killTime = target.getTime();
-    }
-
-    else {
-      return message.reply('❌ Invalid format. Use minutes or HH:MM');
+    } else {
+      return message.reply('❌ Invalid format.');
     }
 
     kills[bossKey] = killTime;
     saveData();
 
-    return message.reply(
-      `🕒 ${bosses[bossKey].name} updated.\n📅 ${formatDate(killTime)}`
-    );
+    return message.reply(`🕒 ${bosses[bossKey].name} updated.\n📅 ${formatDate(killTime)}`);
   }
 
-  /* =========================
-     BASIC COMMANDS
-  ========================= */
+  /* ===== !dead ===== */
   if (cmd === '!dead') {
     if (!bosses[bossKey]) return message.reply('❌ Boss not found.');
     kills[bossKey] = Date.now();
@@ -178,22 +249,24 @@ client.on('messageCreate', message => {
     return message.reply(`🟥 ${bosses[bossKey].name} marked dead.`);
   }
 
+  /* ===== !alive ===== */
   if (cmd === '!alive') {
     delete kills[bossKey];
     saveData();
     return message.reply(`🟢 ${bosses[bossKey].name} is alive.`);
   }
 
+  /* ===== !reset ===== */
   if (cmd === '!reset') {
     kills = {};
     alerted = {};
     saveData();
-    return message.reply('🧹 All interval boss data has been reset.');
+    return message.reply('🧹 Reset complete.');
   }
 });
 
 /* =========================
-   🔐 START BOT (FIXED)
+   🔐 START BOT
 ========================= */
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
